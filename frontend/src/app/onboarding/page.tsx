@@ -319,7 +319,7 @@ export default function OnboardingPage() {
       {step === 4 && (
         <>
           <AnimatedText
-            text="What is your goal with heyits?"
+            text="Why do you want to journal with heyits?"
             className="text-2xl font-semibold text-center mb-8"
             wordDelay={90}
             onDone={() => setAnimDone(true)}
