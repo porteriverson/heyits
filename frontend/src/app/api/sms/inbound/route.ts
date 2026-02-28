@@ -3,10 +3,7 @@ import { createAdminClient } from "@/lib/supabaseServer";
 
 export async function POST(request: NextRequest) {
   const secret = request.headers.get("x-poller-secret");
-  if (
-    process.env.POLLER_SECRET &&
-    secret !== process.env.POLLER_SECRET
-  ) {
+  if (process.env.POLLER_SECRET && secret !== process.env.POLLER_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -16,7 +13,10 @@ export async function POST(request: NextRequest) {
   };
 
   if (!from || !body?.trim()) {
-    return NextResponse.json({ error: "Missing from or body" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Missing from or body" },
+      { status: 400 },
+    );
   }
 
   const supabase = createAdminClient();
@@ -24,7 +24,9 @@ export async function POST(request: NextRequest) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, phone_verified, last_prompt_sent_at")
+    .select(
+      "id, phone_verified, last_prompt_sent_at, last_prompt_text, last_prompt_title",
+    )
     .eq("phone", normalizedPhone)
     .single();
 
@@ -64,6 +66,8 @@ export async function POST(request: NextRequest) {
     user_id: profile.id,
     content: body.trim(),
     source: "sms",
+    prompt_text: profile.last_prompt_text ?? null,
+    prompt_title: profile.last_prompt_title ?? null,
   });
 
   // Clear the pending flag so only the first reply is saved

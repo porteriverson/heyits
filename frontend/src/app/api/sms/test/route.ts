@@ -24,20 +24,24 @@ export async function POST() {
   if (profileError || !profile) {
     return NextResponse.json(
       { error: "Profile not found. Save your phone number first." },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   try {
-    const prompt = await generatePrompt(admin, profile);
-    await sendSMS(profile.phone, `[TEST] ${prompt}`);
+    const { promptText, promptTitle } = await generatePrompt(admin, profile);
+    await sendSMS(profile.phone, `[TEST] ${promptText}`);
 
     await admin
       .from("profiles")
-      .update({ last_prompt_sent_at: new Date().toISOString() })
+      .update({
+        last_prompt_sent_at: new Date().toISOString(),
+        last_prompt_text: promptText,
+        last_prompt_title: promptTitle,
+      })
       .eq("id", user.id);
 
-    return NextResponse.json({ ok: true, prompt });
+    return NextResponse.json({ ok: true, prompt: promptText });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed";
     return NextResponse.json({ error: msg }, { status: 500 });

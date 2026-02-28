@@ -68,7 +68,7 @@ async function poll(db, state) {
            AND m.text IS NOT NULL
            AND trim(m.text) != ''
            AND m.ROWID > ?
-         ORDER BY m.ROWID ASC`
+         ORDER BY m.ROWID ASC`,
       )
       .all(state.lastRowId);
   } catch (err) {
@@ -132,7 +132,7 @@ async function main() {
     console.error("  " + err.message + "\n");
     console.error("  Fix: grant Full Disk Access to your terminal app:");
     console.error(
-      "  System Settings → Privacy & Security → Full Disk Access → add Terminal (or iTerm2)"
+      "  System Settings → Privacy & Security → Full Disk Access → add Terminal (or iTerm2)",
     );
     process.exit(1);
   }

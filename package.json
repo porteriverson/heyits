@@ -6,7 +6,8 @@
     "dev": "npm run dev --workspace=frontend",
     "build": "npm run build --workspace=frontend",
     "start": "npm run start --workspace=frontend",
-    "poller": "node scripts/poller.mjs"
+    "poller": "node scripts/poller.mjs",
+    "scheduler:dev": "node scripts/scheduler-dev.mjs"
   },
   "workspaces": [
     "frontend"

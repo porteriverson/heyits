@@ -8,7 +8,9 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get("state"); // user id
 
   if (!code || !state) {
-    return NextResponse.redirect(new URL("/dashboard?error=missing_params", request.url));
+    return NextResponse.redirect(
+      new URL("/dashboard?error=missing_params", request.url),
+    );
   }
 
   try {
@@ -23,8 +25,12 @@ export async function GET(request: NextRequest) {
       })
       .eq("id", state);
 
-    return NextResponse.redirect(new URL("/dashboard?google=connected", request.url));
+    return NextResponse.redirect(
+      new URL("/dashboard?google=connected", request.url),
+    );
   } catch {
-    return NextResponse.redirect(new URL("/dashboard?error=google_failed", request.url));
+    return NextResponse.redirect(
+      new URL("/dashboard?error=google_failed", request.url),
+    );
   }
 }
