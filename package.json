@@ -1,13 +1,19 @@
 {
   "name": "heyits",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "npm run dev --workspace=frontend",
-    "dev:frontend": "npm run dev --workspace=frontend",
     "build": "npm run build --workspace=frontend",
-    "install:all": "npm install --workspaces"
+    "start": "npm run start --workspace=frontend",
+    "poller": "node scripts/poller.mjs"
   },
   "workspaces": [
     "frontend"
-  ]
+  ],
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^11.10.0",
+    "dotenv": "^16.5.0"
+  }
 }
