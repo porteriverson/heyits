@@ -29,9 +29,14 @@ function formatEventList(events: CalendarEvent[]): string {
     .join("\n");
 }
 
+export interface GeneratedPrompt {
+  prompt: string;
+  title: string;
+}
+
 export async function generatePromptFromCalendar(
   events: CalendarEvent[]
-): Promise<string> {
+): Promise<GeneratedPrompt> {
   const eventList = formatEventList(events);
 
   const ai = getClient();
@@ -39,21 +44,34 @@ export async function generatePromptFromCalendar(
     model: "gemini-2.5-flash-lite",
     contents: `Here are my calendar events for today:\n${eventList}`,
     config: {
-      systemInstruction: `You are a warm, thoughtful journaling coach. A user shares their calendar events for the day and you write them a single reflective journal prompt to help them process and remember their day.
+      systemInstruction: `You are an AI historian helping a user document their life for future generations. Analyze their Google Calendar data. Identify a unique event, a person they met with, or a recurring location they visited. Generate a question that asks the user to describe the 'human' side of that event—the smells, the specific atmosphere, or the people—in a way that provides context for someone reading this 50 years from now. This question should only be one sentence and the prompt should be at max 15 words.
 
-Rules:
-- One sentence only, ending with a question mark
-- Be specific — reference actual events from their calendar, not generic platitudes
-- Be emotionally resonant and open-ended, not just "How was X?"
-- Vary your style: sometimes ask about feelings, sometimes about surprises, lessons, connections between events, or what they'd do differently
-- Keep it conversational, like a friend asking — not a therapist or a corporate survey
-- Do not include any preamble, explanation, or quotes — output only the prompt itself`,
-      maxOutputTokens: 120,
+Return a JSON object with exactly two fields:
+- "prompt": one sentence ending with a question mark. Be specific — reference actual events. Be emotionally resonant and open-ended. Keep it conversational, like a friend asking.
+- "title": a 3-5 word noun phrase summarising the day's main events (e.g. "Team standup & lunch"). No punctuation at the end.
+
+Output only valid JSON, nothing else.`,
+      maxOutputTokens: 200,
       temperature: 1.0,
     },
   });
 
   const text = response.text?.trim();
   if (!text) throw new Error("Gemini returned empty response");
-  return text;
+
+  try {
+    const json = JSON.parse(text.replace(/^```json\n?|```$/g, "").trim());
+    if (!json.prompt || !json.title) throw new Error("Missing fields");
+    return { prompt: json.prompt.trim(), title: json.title.trim() };
+  } catch {
+    // If Gemini doesn't return valid JSON, treat the whole text as the prompt
+    return {
+      prompt: text,
+      title: events
+        .filter((e) => e.summary)
+        .slice(0, 2)
+        .map((e) => e.summary!)
+        .join(" & ") || "Today",
+    };
+  }
 }

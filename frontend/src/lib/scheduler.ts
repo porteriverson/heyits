@@ -19,11 +19,17 @@ export async function runScheduler() {
 
   let sent = 0;
   const errors: string[] = [];
+  const skipped: string[] = [];
 
   for (const user of users) {
     try {
-      const userNow = now.setZone(user.timezone);
-      const [sendHour, sendMinute] = user.daily_send_time.split(":").map(Number);
+      const timeStr = user.daily_send_time;
+      if (!timeStr || !/^\d{1,2}:\d{2}$/.test(timeStr)) {
+        errors.push(`User ${user.id}: invalid or missing daily_send_time`);
+        continue;
+      }
+      const userNow = now.setZone(user.timezone || "UTC");
+      const [sendHour, sendMinute] = timeStr.split(":").map(Number);
 
       // Total minutes from midnight for the target send time
       const targetMinutes = sendHour * 60 + sendMinute;
@@ -33,22 +39,32 @@ export async function runScheduler() {
       // "on" mode: match within ±1 minute of the exact time
       // "around" mode: match within ±20 minutes, but only if not sent today
       const windowMinutes = user.send_time_type === "around" ? 20 : 1;
-      const inWindow = Math.abs(currentMinutes - targetMinutes) <= windowMinutes;
+      const inWindow =
+        Math.abs(currentMinutes - targetMinutes) <= windowMinutes;
 
       // Skip if already sent today (prevents firing multiple times within the window)
       const alreadySentToday =
         user.last_prompt_sent_at != null &&
-        DateTime.fromISO(user.last_prompt_sent_at).setZone(user.timezone).hasSame(
-          userNow,
-          "day"
+        DateTime.fromISO(user.last_prompt_sent_at)
+          .setZone(user.timezone)
+          .hasSame(userNow, "day");
+
+      if (inWindow && alreadySentToday) {
+        skipped.push(
+          `User ${user.id}: in window (${timeStr}) but already sent today`,
         );
+      }
 
       if (inWindow && !alreadySentToday) {
-        const prompt = await generatePrompt(supabase, user);
-        await sendSMS(user.phone, prompt);
+        const { promptText, promptTitle } = await generatePrompt(supabase, user);
+        await sendSMS(user.phone, promptText);
         await supabase
           .from("profiles")
-          .update({ last_prompt_sent_at: new Date().toISOString() })
+          .update({
+            last_prompt_sent_at: new Date().toISOString(),
+            last_prompt_text: promptText,
+            last_prompt_title: promptTitle,
+          })
           .eq("id", user.id);
         sent++;
       }
@@ -58,5 +74,5 @@ export async function runScheduler() {
     }
   }
 
-  return { sent, errors };
+  return { sent, errors, skipped };
 }

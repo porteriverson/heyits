@@ -10,25 +10,40 @@ interface UserProfile {
   timezone: string;
 }
 
+export interface GeneratedPrompt {
+  promptText: string;
+  promptTitle: string;
+}
+
+function titleFromPromptText(text: string): string {
+  // Take up to 6 words, strip trailing question mark/punctuation
+  const words = text
+    .replace(/[?!.]+$/, "")
+    .split(/\s+/)
+    .slice(0, 6);
+  return words.join(" ");
+}
+
 export async function generatePrompt(
   supabase: AdminClient,
-  user: UserProfile
-): Promise<string> {
+  user: UserProfile,
+): Promise<GeneratedPrompt> {
   if (user.google_connected && user.google_refresh_token) {
     try {
       const { access_token } = await refreshAccessToken(
-        user.google_refresh_token
+        user.google_refresh_token,
       );
       const events = await getTodayEvents(access_token, user.timezone);
 
       if (events.length > 0) {
-        // Use Gemini to craft a personalised prompt from the full day's events
         if (process.env.GEMINI_API_KEY) {
-          return await generatePromptFromCalendar(events);
+          const { prompt, title } = await generatePromptFromCalendar(events);
+          return { promptText: prompt, promptTitle: title };
         }
         // Fallback if no Gemini key: use first event name directly
         if (events[0].summary) {
-          return `How did ${events[0].summary} go today?`;
+          const promptText = `How did ${events[0].summary} go today?`;
+          return { promptText, promptTitle: events[0].summary };
         }
       }
     } catch (err) {
@@ -39,6 +54,9 @@ export async function generatePrompt(
 
   // Random fallback prompt from DB
   const { data } = await supabase.from("prompts").select("prompt_text");
-  if (!data?.length) return "What's one thing from today that's still on your mind?";
-  return data[Math.floor(Math.random() * data.length)].prompt_text;
+  const promptText = data?.length
+    ? data[Math.floor(Math.random() * data.length)].prompt_text
+    : "What's one thing from today that's still on your mind?";
+
+  return { promptText, promptTitle: titleFromPromptText(promptText) };
 }
